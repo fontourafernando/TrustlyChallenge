@@ -46,10 +46,12 @@ namespace Infra.Repository.ZipFile.GitHub
             {
                 var filesInfoGH = await GetAsync(httpResponseMessage);
 
+                RepositoryStats repositoryStats = MapTo(filesInfoGH);
+
                 repositoryInfoGH = new RepositoryInfo
                 {
                     ETag = httpResponseMessage.Headers.ETag,
-                    Archives = filesInfoGH
+                    RepositoryStats = repositoryStats
                 };
 
                 _memoryCache.Set(cacheKey, repositoryInfoGH);
@@ -57,9 +59,7 @@ namespace Infra.Repository.ZipFile.GitHub
             else if (!httpResponseMessage.StatusCode.Equals(HttpStatusCode.NotModified))
                 throw new RepositoryException("GitHub Repository not found.");
 
-            RepositoryStats repositoryStats = MapTo(repositoryInfoGH);
-
-            return repositoryStats;
+            return repositoryInfoGH.RepositoryStats;
         }
 
         private async Task<ICollection<ArchiveInfo>> GetAsync(HttpResponseMessage httpResponseMessage)
@@ -135,13 +135,13 @@ namespace Infra.Repository.ZipFile.GitHub
             return lines.Length;
         }
 
-        private RepositoryStats MapTo(RepositoryInfo repositoryInfoGH)
+        private RepositoryStats MapTo(ICollection<ArchiveInfo> archivesInfo)
         {
             RepositoryStats repositoryStats = null;
 
-            if (repositoryInfoGH != null)
+            if (archivesInfo != null)
             {
-                ICollection<ArchiveStats> filesStats = repositoryInfoGH.Archives
+                ICollection<ArchiveStats> filesStats = archivesInfo
                     .GroupBy(f => f.Extension)
                     .Select(g => new ArchiveStats
                     {
